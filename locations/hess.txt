@@ -1,0 +1,3 @@
+ 80     0  HESS
+-80     0  HESS
+  0   -80  HESS
