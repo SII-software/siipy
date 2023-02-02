@@ -43,7 +43,9 @@ def draw(xc,yc,f,zoom,where,cmap='Greys_r',ceil=None,fceil=None,title=None):
             fmin,fmax = 0,f.max()
             levs = np.linspace(fmin,fmax,20)
         cs = pl.contourf(x,y,f,levs,norm=colors.Normalize(vmin=fmin,vmax=fmax),cmap=cmap)
-    if fmax > 10:
+    if fmax > 1000:
+        fms = '%5.1e'
+    elif 10 < fmax:
         fms = '%i'
     else:
         lgf = np.log10(fmax)
@@ -52,7 +54,7 @@ def draw(xc,yc,f,zoom,where,cmap='Greys_r',ceil=None,fceil=None,title=None):
             fms = '%7.1e'
         else:
             fms = '%' + '.%i' % ip + 'f'
-    pl.colorbar(cs)#,format=fms)
+    pl.colorbar(cs,format=fms)
     if title:
         pl.title(title)
     pl.gca().set_aspect('equal')
