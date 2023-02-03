@@ -6,12 +6,12 @@ class Orbit():
     def __init__(self,P,e,I,Omega,omega,jdperi,q):
         self.P, self.e, self.jdperi, self.q = P, e, jdperi, q
         pi, cos, sin = np.pi, np.cos, np.sin
-        x = I*pi/180
-        self.cosI = cos(x)
-        x = Omega*pi/180
-        self.cosOm, self.sinOm = cos(x), sin(x)
-        x = omega*pi/180
-        self.cosom, self.sinom = cos(x), sin(x)
+        u = I*pi/180
+        self.cosI = cos(u)
+        u = Omega*pi/180 + pi/2  # pi/2 to make x axis North
+        self.cosOm, self.sinOm = cos(u), sin(u)
+        u = omega*pi/180
+        self.cosom, self.sinom = cos(u), sin(u)
         
     def pos(self,tph):
         ''' Keplerian x,y,z '''
@@ -34,8 +34,8 @@ class Orbit():
 
     def binarypos(self,jd):
         q = self.q
-        a1 = q/(1+q)
-        a2 = -1/(1+q)
+        a1 = -q/(1+q)
+        a2 = 1/(1+q)
         tph = 2*np.pi*(jd-self.jdperi) / self.P
         tph = tph % (2*np.pi)
         xs,ys = self.pos(tph)
