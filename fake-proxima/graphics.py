@@ -3,10 +3,13 @@ import matplotlib.pyplot as pl
 import matplotlib.colors as colors
 
 mas = 1e-3/(180/np.pi*3600)
+SI_h = 6.62607015e-34
+SI_e = 1.602176634e-19
+SI_c = 299792458
 
 # Draws contour map of f (on sky or ground, directed)
 # zoom factor (power of 2 preferred)
-def draw(xc,yc,f,zoom,where,cmap='Greys_r',ceil=None,fceil=None,title=None):
+def draw(xc,yc,f,zoom,where,cmap='Greys_r',ceil=None,fceil=None,title=None,lam=None):
     def cen(f):
         N = f.shape[0]
         M = N//(zoom*2)
@@ -16,12 +19,19 @@ def draw(xc,yc,f,zoom,where,cmap='Greys_r',ceil=None,fceil=None,title=None):
     fmax = f.max()
     fmin = f.min()
     if where=='sky':
-        sx,sy = cen(xc)/mas, cen(yc)/mas
+        if lam:
+            neVbc = 1e-9*SI_h*SI_c/SI_e/lam
+            sx,sy = cen(xc)/neVbc, cen(yc)/neVbc
+        else:
+            sx,sy = cen(xc)/mas, cen(yc)/mas
         if ceil:
             fmin,fmax = 0,max(ceil,f.max())
         levs = np.linspace(fmin,fmax,40)
         cs = pl.contourf(sx,sy,f,levs,cmap=cmap)
-        pl.xlabel('mas')
+        if lam:
+            pl.xlabel('nano eV/$c$')
+        else:
+            pl.xlabel('mas')
     if where=='ground':
         if xc[-1,-1] > 3e4:
             x,y = 1e-3*cen(xc), 1e-3*cen(yc)
