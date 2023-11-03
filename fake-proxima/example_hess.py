@@ -10,50 +10,58 @@ pl.style.use('dark_background')
 
 source = Layout()
 
-source.set_radec((14,29,42.94),(-62,40,46.13)) # Proxima Cen
-source.set_latlon((-23,16,25.4856),(16,31,10.2432))  # HESS
+source.set_radec((14,29,42.94),(-62,-40,-46.13)) # Proxima Cen
+source.set_latlon((-23,-16,-25.4856),(16,31,10.2432))  # HESS
 
 def stretch(f):
     return np.sign(f) * np.abs(f)**(1/4)
 
+def illus(fname):
+    pl.pause(10)
+    #print(fname)
+    #pl.savefig(fname)
+
 def run():
-    F = 96
+    F = 100
     N = 2048
-    ds = 2.58e-11
+    ds = 2e-11
     lam = 800e-9
-    
+    gz = 16
     sx,sy,x,y,Tmap,vari = teff(N,ds,lam)
     S = sbright(Tmap,lam,ds)
-    #pl.show()
-    #f *= 1 * (1e9 * 300)**.5  # A = 1 m^2 and t_obs = 5 min
     f = correldens(S,lam)
-    fv = correldens(S*vari,lam)
+    #fv = correldens(S*vari,lam)
     f /= np.max(f)
-    fv /= np.max(fv)
-    til = ('photons / (m^2 s Hz sr)')
-    draw(sx,sy,S*vari/ds**2,8,'sky',cmap='magma',title=til)
-    #pl.savefig('tmp/src')
-    pl.pause(2)
+    #fv /= np.max(fv)
+    masf = (np.pi/180/3.6e6/ds)**2
+    smax = np.max(S*vari*masf)
+    #draw(sx,sy,S*masf,8,'sky',ceil=smax,cmap='magma',title=til)
+    #illus('figs/src_ud')
+    til = ('photons / (m^2 s Hz mas^2) at %i nm' % round(1e9*lam))
+    draw(sx,sy,S*masf,8,'sky',ceil=smax,cmap='magma',title=til)
+    illus('figs/src_ud')
+    draw(sx,sy,S*masf,8,'sky',ceil=smax,cmap='magma',title=til,lam=lam)
+    illus('figs/src_udn')
+    #til = ('|visib|^2 at %i nm' % (1e9*lam+0.5))
+    #draw(x,y,f,gz,'ground',fceil=1,cmap='coolwarm',title=til)
+    #illus('figs/visibq')
+    #sig = stretch(f)
+    #til = ('|visib| at %i nm' % (1e9*lam+0.5))
+    #draw(x,y,sig,gz,'ground',fceil=1,cmap='coolwarm',title=til)
+    #illus('figs/visib')
     sig = stretch(f)
-    til = ('correlation^(1/4) at %i nm' % (1e9*lam+0.5))
-    draw(x,y,sig,16,'ground',fceil=np.max(abs(sig)),cmap='coolwarm',title=til)
-    #pl.savefig('tmp/corr')
-    pl.pause(2)
-    sig = stretch(fv-f)
-    til = ('(corr diff)^(1/4) at %i nm' % (1e9*lam+0.5))
-    
-    draw(x,y,sig,16,'ground',fceil=np.max(abs(sig)),cmap='coolwarm',title=til)
+    til = ('(corr)^(1/4) at %i nm' % (1e9*lam+0.5))
     
     for fr in range(48):
         jd = 246e5 + (fr-7)/48
         u,v,w = source.get_uvw(jd,dx,dy,0*dx)
         hx,hy,hz = source.get_xyz(jd,0,0,1)
         print('time %.3f altitude %.3f' % (jd-246e5,hz))
+        draw(x,y,sig,gz,'ground',fceil=np.max(abs(sig)),cmap='coolwarm',title=til)
         if hz > 0:
             pl.plot(u,v,'+',color='white')
         print(fr)
-    pl.pause(10)
-
+        illus('tmp/corr%i'%fr)
         
 
 x = []
@@ -76,8 +84,6 @@ for i in range(len(x)):
             dy.append(y[i]-y[j])
 dx = np.array(dx)
 dy = np.array(dy)
-
-
 
 run()
 

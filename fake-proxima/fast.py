@@ -7,9 +7,9 @@ from matplotlib.pyplot import pause, savefig, style
 style.use('dark_background')
 
 def illus(fname):
-    #pause(0.1)
+    pause(0.1)
     print(fname)
-    savefig(fname)
+    #savefig(fname)
 
 N = 2048
 ds = 2e-11
