@@ -1,19 +1,30 @@
 #############################################################
 ##### Reimplementation of P. Saha and K. N. Rai code ########
 #############################################################
+import warnings
+warnings.filterwarnings("ignore")
 
 import numpy as np
-import astropy.units as u
 import matplotlib.pyplot as plt
 
-plt.style.use('dark_background')
-
+from astropy import units as u
+from astropy import constants
 from astropy.time import Time
-from astropy.constants import R_sun
+from astropy.modeling import models
+
 from scipy.optimize import brentq
 
 pi, cos, sin = np.pi, np.cos, np.sin
 
+from numpy.fft import fft2, ifft2, fftshift
+
+from plotting.plotting import Plotter
+
+def fourier(f):
+    return fftshift(fft2(fftshift(f)))
+
+def ifourier(f):
+    return fftshift(ifft2(fftshift(f)))
 
 def calc_a1(a, q):
     return q / (1 + q) * a
@@ -41,35 +52,27 @@ def pos(
 
 
 def ellipsis(sx, sy, rad, posx=0, posy=0, elong=1, pa=0):
-    sx, sy = sx.to_value("m"), sy.to_value("m")
+    #sx, sy = sx.to_value("m"), sy.to_value("m")
     dx, dy = sx - posx, sy - posy
     dx, dy = cos(pa) * dx + sin(pa) * dy, -sin(pa) * dx + cos(pa) * dy
     return np.where(dx ** 2 * elong + dy ** 2 / elong < rad.value ** 2, 1, 0)
 
 
-def plot_skymap(x_coord, y_coord, smap, zoom=4,  ceil=None, **ax_kwargs):
-    def cen(f):
-        N = f.shape[0]
-        M = N // (zoom * 2)
-        return f[N // 2 - M:N // 2 + M, N // 2 - M:N // 2 + M]
-
-    smap = cen(smap)
-
-    mapmax = smap.max()
-    mapmin = smap.min()
-
-    mas = (1 * u.mas).to("", equivalencies=u.dimensionless_angles())
-    sx, sy = cen(x_coord.to_value("m")) / mas, cen(y_coord.to_value("m")) / mas
-    if ceil is not None:
-        mapmin, mapmax = 0, max(ceil, smap.max())
-    levels = np.linspace(mapmin, mapmax, 40)
-    plt.clf()
-    cs = plt.contourf(sx, sy, smap, levels, **ax_kwargs)
-    plt.xlabel('mas')
-    plt.colorbar(cs)
-    plt.tight_layout()
-    plt.gca().set_aspect('equal')
-
+def calc_sbright(T,lam,ds):
+    z = (constants.h.si * constants.c.si) / (lam.to("m") * constants.k_B.si * (T + 2.725) * u.K)  # to avoid overflow in exp(z)
+    z = np.clip(z.to_value(), 0, 20)
+    return (ds / lam)**2 / (np.exp(z) - 1)
+def calc_correlation_density(sbright,lam):
+    N = sbright.shape[0]
+    pcoh = np.sum(sbright)
+    pflux = 2 * constants.c.si / lam.to("m") * pcoh
+    mag = -2.5 * (np.log10(constants.h.si.value * pflux.value) + 22.44)
+    print('AB = %5.2f' % mag)
+    V = fourier(sbright)
+    Vmax = V[N//2, N//2]
+    V2 = np.abs(V / Vmax) ** 2
+    f = pcoh * V2
+    return f
 
 def run(
         start_time,
@@ -104,13 +107,26 @@ def run(
     x = wavelength / (nbins * s)
     ground_x, ground_y = np.meshgrid(x, x)
 
+    plotter = Plotter()
+
+    fig = plt.figure()
     for phase in phases[1:]:
+        ax = fig.subplots(1, 2)
         posx, posy = pos(phase, eccentricity, omega, Omega, inclination)
         tmap1 = T1 * ellipsis(sky_x, sky_y, r1, a1 * posx, a1 * posy)
         tmap2 = T2 * ellipsis(sky_x, sky_y, r2, a2 * posx, a2 * posy)
         tmap = tmap1 + tmap2
-        plot_skymap(sky_x, sky_y, tmap, zoom=4, cmap='gray')
-        plt.pause(2)
+        plotter.plot_skymap(sky_x, sky_y, tmap, ax=ax[0],
+                                  xlabel='mas', zoom=4, cmap='gray')
+        s_bright = calc_sbright(tmap, wavelength, binsize)
+        corr_density = calc_correlation_density(s_bright, wavelength)
+        flux = 1 * np.sqrt(1e9 * 300) * corr_density
+        normalized_flux = flux / np.max(flux)
+        plotter.plot_groundmap(ground_x, ground_y, normalized_flux, ceiling=1,
+                                     ax=ax[1], zoom=8, cmap='inferno')
+        plt.pause(1)
+        plt.clf()
+        # plt.close()
     return sky_x, sky_y, ground_x, ground_y, tmap
 
 dis = 380 * u.pc
@@ -125,13 +141,13 @@ sky_x, sky_y, ground_x, ground_y, tmap = run(
     0.326,
     35e3,
     57e3,
-    17 * R_sun / dis.to("m"),
-    6 * R_sun / dis.to("m"),
+    17 * constants.R_sun / dis.to("m"),
+    6 * constants.R_sun / dis.to("m"),
     (140 * u.deg).to("rad"),
     (130 * u.deg).to("rad"),
     (117 * u.deg).to("rad"),
     1024,
-    0.09 * u.nm,
+    9.e-11,
     465 * u.nm,
 )
 
